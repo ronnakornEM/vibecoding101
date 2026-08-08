@@ -4,9 +4,13 @@ Run locally:  streamlit run app01-streamlit.py
 Deploy:       push repo to GitHub, point Streamlit Community Cloud at this file.
 """
 
+import sqlite3
+from pathlib import Path
 from statistics import median
 
 import streamlit as st
+
+DB_PATH = Path(__file__).with_name("patients.db")
 
 METRICS = ("Glucose", "BMI", "Age", "BloodPressure")
 EDITABLE = ("Glucose", "BMI", "BloodPressure")  # Age is demographic, not re-measured
@@ -36,35 +40,58 @@ VALID_RANGES = {
 # Model — Data Access Layer
 # ---------------------------------------------------------------------------
 class DataAccessLayer:
-    """Holds raw patient records and cleans them on load."""
+    """SQLite-backed patient records; seeds demo data and cleans it on first run."""
 
-    def __init__(self):
-        self.patients = {
-            1: {"Glucose": 148, "BMI": 33.6, "Age": 50, "BloodPressure": 72},
-            2: {"Glucose": 85, "BMI": 0, "Age": 31, "BloodPressure": 66},
-            3: {"Glucose": 183, "BMI": 23.3, "Age": 32, "BloodPressure": 64},
-            4: {"Glucose": 89, "BMI": 28.1, "Age": 21, "BloodPressure": 66},
-        }
-        self._fix_zero_bmi()
+    _SEED = {
+        1: {"Glucose": 148, "BMI": 33.6, "Age": 50, "BloodPressure": 72},
+        2: {"Glucose": 85, "BMI": 0, "Age": 31, "BloodPressure": 66},
+        3: {"Glucose": 183, "BMI": 23.3, "Age": 32, "BloodPressure": 64},
+        4: {"Glucose": 89, "BMI": 28.1, "Age": 21, "BloodPressure": 66},
+    }
 
-    def _fix_zero_bmi(self):
+    def __init__(self, db_path=DB_PATH):
+        self.db_path = db_path
+        with self._conn() as con:
+            con.execute(
+                "CREATE TABLE IF NOT EXISTS patients ("
+                "id INTEGER PRIMARY KEY, Glucose REAL, BMI REAL, Age REAL, BloodPressure REAL)"
+            )
+            if con.execute("SELECT COUNT(*) FROM patients").fetchone()[0] == 0:
+                for pid, p in self._SEED.items():
+                    con.execute(
+                        "INSERT INTO patients VALUES (?, ?, ?, ?, ?)",
+                        (pid, p["Glucose"], p["BMI"], p["Age"], p["BloodPressure"]),
+                    )
+                self._fix_zero_bmi(con)
+
+    # ponytail: connection per call — trivial cost at this scale, no thread issues
+    def _conn(self):
+        return sqlite3.connect(self.db_path)
+
+    @staticmethod
+    def _fix_zero_bmi(con):
         """Replace any BMI of 0 with the median BMI of the other patients."""
-        valid = [p["BMI"] for p in self.patients.values() if p["BMI"] != 0]
-        if not valid:
-            return
-        fill = median(valid)
-        for p in self.patients.values():
-            if p["BMI"] == 0:
-                p["BMI"] = fill
+        valid = [r[0] for r in con.execute("SELECT BMI FROM patients WHERE BMI != 0")]
+        if valid:
+            con.execute("UPDATE patients SET BMI = ? WHERE BMI = 0", (median(valid),))
 
     def ids(self):
-        return list(self.patients.keys())
+        with self._conn() as con:
+            return [r[0] for r in con.execute("SELECT id FROM patients ORDER BY id")]
 
     def get(self, pid):
-        return self.patients.get(pid)
+        with self._conn() as con:
+            row = con.execute(
+                "SELECT Glucose, BMI, Age, BloodPressure FROM patients WHERE id = ?", (pid,)
+            ).fetchone()
+        return dict(zip(METRICS, row)) if row else None
 
     def save(self, pid, profile):
-        self.patients[pid] = profile
+        with self._conn() as con:
+            con.execute(
+                "INSERT OR REPLACE INTO patients VALUES (?, ?, ?, ?, ?)",
+                (pid, profile["Glucose"], profile["BMI"], profile["Age"], profile["BloodPressure"]),
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -202,13 +229,10 @@ div[data-baseweb="select"] > div, .stNumberInput input,
 </style>
 """, unsafe_allow_html=True)
 
-# ponytail: in-memory model kept in session_state, same volatility as the console app
-if "model" not in st.session_state:
-    st.session_state.model = DataAccessLayer()
-model = st.session_state.model
+model = DataAccessLayer()
 
 st.title("🎮 DIABETES RISK QUEST")
-st.caption("Data is in-memory only; refreshing the page resets all changes.")
+st.caption(f"Data persists in {DB_PATH.name} (SQLite); saved changes survive restarts.")
 
 pid = st.selectbox("Patient ID", model.ids())
 profile = dict(model.get(pid))
