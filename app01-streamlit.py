@@ -128,14 +128,86 @@ def receipt(pid, profile, total, category):
 # ---------------------------------------------------------------------------
 # View/Controller — Streamlit GUI
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Diabetes Risk Scoring System", page_icon="🩺")
+st.set_page_config(page_title="Diabetes Risk Scoring System", page_icon="🎮")
+
+# ponytail: 8-bit skin is pure CSS injection; app logic/widgets untouched
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+html, body, [class*="css"], .stApp, .stApp * {
+    font-family: 'Press Start 2P', monospace !important;
+}
+
+.stApp {
+    background-color: #0f0f23;
+    color: #33ff33;
+}
+.stApp p, .stApp label, .stApp span, .stApp div, .stApp td, .stApp th {
+    color: #33ff33;
+    font-size: 11px;
+    line-height: 1.8;
+}
+h1 { color: #ffcc00 !important; font-size: 20px !important;
+     text-shadow: 3px 3px 0 #cc3333; line-height: 1.6 !important; }
+h2, h3 { color: #66ccff !important; font-size: 14px !important; }
+[data-testid="stCaptionContainer"] * { color: #888 !important; font-size: 9px !important; }
+
+/* chunky pixel borders everywhere, no rounded corners */
+.stApp *, .stApp *::before, .stApp *::after { border-radius: 0 !important; }
+
+.stButton button {
+    background: #cc3333 !important;
+    color: #fff !important;
+    border: 4px solid #fff !important;
+    box-shadow: 4px 4px 0 #000 !important;
+    font-size: 12px !important;
+    padding: 12px 20px !important;
+}
+.stButton button:hover { background: #ff5555 !important; }
+.stButton button:active { box-shadow: 1px 1px 0 #000 !important;
+                          transform: translate(3px, 3px); }
+
+div[data-baseweb="select"] > div, .stNumberInput input,
+[data-testid="stNumberInputContainer"] {
+    background: #000 !important;
+    color: #33ff33 !important;
+    border: 3px solid #33ff33 !important;
+}
+.stNumberInput button { background: #222 !important; color: #33ff33 !important; }
+
+[data-testid="stMetric"] {
+    background: #000;
+    border: 3px solid #66ccff;
+    box-shadow: 3px 3px 0 #66ccff44;
+    padding: 8px;
+}
+[data-testid="stMetricValue"] > div { color: #ffcc00 !important; font-size: 16px !important; }
+[data-testid="stMetricLabel"] p { font-size: 8px !important; }
+[data-testid="stMetricDelta"] * { color: #66ccff !important; font-size: 8px !important; }
+
+[data-testid="stTable"] table { border: 3px solid #33ff33 !important; background: #000; }
+[data-testid="stTable"] th, [data-testid="stTable"] td { border: 1px solid #33ff3355 !important; }
+
+.stAlert { border: 4px solid currentColor !important; box-shadow: 4px 4px 0 #000 !important; }
+
+.stCode, .stCode pre, .stCode code, [data-testid="stCode"] * {
+    background: #000 !important;
+    color: #33ff33 !important;
+    font-size: 10px !important;
+}
+[data-testid="stCode"] { border: 3px solid #33ff33; box-shadow: 0 0 12px #33ff3366; }
+
+[data-testid="stWidgetLabel"] p { color: #66ccff !important; }
+</style>
+""", unsafe_allow_html=True)
 
 # ponytail: in-memory model kept in session_state, same volatility as the console app
 if "model" not in st.session_state:
     st.session_state.model = DataAccessLayer()
 model = st.session_state.model
 
-st.title("🩺 Diabetes Risk Scoring System")
+st.title("🎮 DIABETES RISK QUEST")
 st.caption("Data is in-memory only; refreshing the page resets all changes.")
 
 pid = st.selectbox("Patient ID", model.ids())
